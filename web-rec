@@ -1,0 +1,6 @@
+#!/bin/zsh
+# Starts Salty Rec on localhost:4388 and opens it in Chrome.
+DIR="${0:A:h}/web"
+lsof -i :4388 >/dev/null 2>&1 || (cd "$DIR" && nohup python3 -m http.server 4388 --bind 127.0.0.1 >/dev/null 2>&1 &)
+sleep 0.5
+open -a "Google Chrome" "http://localhost:4388/"

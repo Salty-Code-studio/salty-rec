@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+.wrangler/
+worker/.wrangler/
+saltyrec/bin/
+models/
+packaging/ffmpeg/
+*.spec.bak
+.DS_Store

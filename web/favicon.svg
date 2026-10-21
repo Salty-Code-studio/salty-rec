@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="saltycodestudio favicon">
+  <title>saltycodestudio favicon</title>
+  <rect width="64" height="64" rx="14" fill="#0E3A40"/>
+  <g stroke="#F2EBDD" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- wave / tilde -->
+    <path d="M8 38 C 12 31 17 31 21 36 C 25 41 31 41 38 33"/>
+    <!-- angle bracket / chevron (~&lt;) -->
+    <path d="M56 24 L46 37 L56 50"/>
+  </g>
+</svg>

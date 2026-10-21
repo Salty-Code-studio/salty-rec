@@ -1,0 +1,17 @@
+[project]
+name = "saltyrec"
+version = "1.0.0"
+description = "Salty Rec: a free, open-source screen and camera recorder in the spirit of Loom."
+license = "MIT"
+requires-python = ">=3.13"
+dependencies = [
+    "pyside6-addons>=6.12.0",
+    "pyside6-essentials>=6.12.0",
+    "pywhispercpp>=1.5.1",
+    "pyobjc-framework-cocoa>=12.2.2; sys_platform == 'darwin'",
+    "soundcard>=0.4.6; sys_platform == 'win32'",
+    "numpy>=2.0; sys_platform == 'win32'",
+]
+
+[dependency-groups]
+build = ["pyinstaller>=6.11"]
