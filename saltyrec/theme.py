@@ -69,6 +69,10 @@ QSlider::groove:horizontal {{ height: 3px; background: {LINE}; border-radius: 1p
 QSlider::sub-page:horizontal {{ background: {TEAL}; border-radius: 1px; }}
 QSlider::handle:horizontal {{ background: {TEAL}; width: 11px; height: 11px; margin: -4px 0; border-radius: 5px; }}
 QSplitter::handle {{ background: {LINE}; width: 1px; }}
+QScrollBar:vertical {{ background: transparent; width: 8px; margin: 2px; }}
+QScrollBar::handle:vertical {{ background: #D6CBB5; border-radius: 3px; min-height: 30px; }}
+QScrollBar::handle:vertical:hover {{ background: {INK_MUTE}; }}
+QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::sub-page {{ height: 0; background: none; }}
 
 /* recording bar: dark ink, the timer and status are sand, only Stop is coral */
 QLabel#barTime {{ color: {SAND}; font-family: "JetBrains Mono"; font-size: {BODY + 2}px; min-width: 52px; }}

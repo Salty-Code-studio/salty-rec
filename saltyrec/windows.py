@@ -98,3 +98,41 @@ def activate(win):
         _user32().SetForegroundWindow(win["id"])
     except Exception:
         pass
+
+
+def window_thumb(win, out_path, max_w=640):
+    """Snapshot of one window, even when covered (PrintWindow with full content). Returns the path or None."""
+    try:
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QImage
+        u, g = _user32(), ctypes.windll.gdi32
+        w, h = int(win["width"]), int(win["height"])
+        hwnd = win["id"]
+        src = u.GetWindowDC(hwnd)
+        mem = g.CreateCompatibleDC(src)
+        bmp = g.CreateCompatibleBitmap(src, w, h)
+        g.SelectObject(mem, bmp)
+        ok = u.PrintWindow(hwnd, mem, 2)                  # PW_RENDERFULLCONTENT
+
+        class BITMAPINFOHEADER(ctypes.Structure):
+            _fields_ = [("biSize", ctypes.c_uint32), ("biWidth", ctypes.c_int32), ("biHeight", ctypes.c_int32),
+                        ("biPlanes", ctypes.c_uint16), ("biBitCount", ctypes.c_uint16),
+                        ("biCompression", ctypes.c_uint32), ("biSizeImage", ctypes.c_uint32),
+                        ("biXPelsPerMeter", ctypes.c_int32), ("biYPelsPerMeter", ctypes.c_int32),
+                        ("biClrUsed", ctypes.c_uint32), ("biClrImportant", ctypes.c_uint32)]
+
+        hdr = BITMAPINFOHEADER(ctypes.sizeof(BITMAPINFOHEADER), w, -h, 1, 32, 0, 0, 0, 0, 0, 0)
+        buf = ctypes.create_string_buffer(w * h * 4)
+        g.GetDIBits(mem, bmp, 0, h, buf, ctypes.byref(hdr), 0)
+        g.DeleteObject(bmp)
+        g.DeleteDC(mem)
+        u.ReleaseDC(hwnd, src)
+        if not ok:
+            return None
+        img = QImage(buf, w, h, QImage.Format_RGB32).copy()
+        if w > max_w:
+            img = img.scaledToWidth(max_w, Qt.SmoothTransformation)
+        img.save(str(out_path))
+        return str(out_path)
+    except Exception:
+        return None

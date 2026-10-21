@@ -52,20 +52,60 @@ func devices() {
                  "name": names[d.displayID] ?? "Display \(d.displayID)",
                  "x": d.frame.origin.x, "y": d.frame.origin.y]
             }
-            let me = getpid(), parent = getppid()
-            let windows = content.windows.filter {
-                $0.windowLayer == 0 && $0.isOnScreen && $0.frame.width >= 200 && $0.frame.height >= 150
-                    && !($0.title ?? "").isEmpty && $0.owningApplication != nil
-                    && $0.owningApplication!.processID != me && $0.owningApplication!.processID != parent
-            }.map { w -> [String: Any] in
-                ["id": w.windowID, "app": w.owningApplication!.applicationName, "pid": w.owningApplication!.processID,
-                 "title": w.title ?? "", "x": w.frame.origin.x, "y": w.frame.origin.y,
-                 "width": w.frame.width, "height": w.frame.height]
-            }
+            let windows = recordableWindows(content).map(windowInfo)
             let mics = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone, .external],
                                                         mediaType: .audio, position: .unspecified).devices
                 .map { ["uid": $0.uniqueID, "name": $0.localizedName] }
             let data = try JSONSerialization.data(withJSONObject: ["displays": displays, "mics": mics, "windows": windows])
+            say(String(data: data, encoding: .utf8)!)
+            exit(0)
+        } catch {
+            fail("\(error.localizedDescription)", 2)
+        }
+    }
+    dispatchMain()
+}
+
+/// Normal app windows worth recording: on screen, a real size, a title, not ours.
+func recordableWindows(_ content: SCShareableContent) -> [SCWindow] {
+    let me = getpid(), parent = getppid()
+    return content.windows.filter {
+        $0.windowLayer == 0 && $0.isOnScreen && $0.frame.width >= 200 && $0.frame.height >= 150
+            && !($0.title ?? "").isEmpty && $0.owningApplication != nil
+            && $0.owningApplication!.processID != me && $0.owningApplication!.processID != parent
+    }
+}
+
+func windowInfo(_ w: SCWindow) -> [String: Any] {
+    ["id": w.windowID, "app": w.owningApplication!.applicationName, "pid": w.owningApplication!.processID,
+     "title": w.title ?? "", "x": w.frame.origin.x, "y": w.frame.origin.y,
+     "width": w.frame.width, "height": w.frame.height]
+}
+
+/// thumbs --out DIR: a PNG snapshot of every recordable window (even covered ones) for the window picker.
+func thumbs() {
+    let dir = arg("--out") ?? NSTemporaryDirectory()
+    _ = NSApplication.shared            // window server connection, needed for screenshots
+    Task {
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            var out: [[String: Any]] = []
+            for w in recordableWindows(content) {
+                var info = windowInfo(w)
+                let cfg = SCStreamConfiguration()
+                let k = min(1.0, 640.0 / max(w.frame.width, 1))
+                cfg.width = max(2, Int(w.frame.width * k))
+                cfg.height = max(2, Int(w.frame.height * k))
+                cfg.showsCursor = false
+                if let img = try? await SCScreenshotManager.captureImage(
+                    contentFilter: SCContentFilter(desktopIndependentWindow: w), configuration: cfg),
+                   let png = NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:]) {
+                    let path = (dir as NSString).appendingPathComponent("win-\(w.windowID).png")
+                    if (try? png.write(to: URL(fileURLWithPath: path))) != nil { info["thumb"] = path }
+                }
+                out.append(info)
+            }
+            let data = try JSONSerialization.data(withJSONObject: out)
             say(String(data: data, encoding: .utf8)!)
             exit(0)
         } catch {
@@ -346,6 +386,7 @@ func hotkeys() {
 
 switch CommandLine.arguments.dropFirst().first {
 case "devices": devices()
+case "thumbs": thumbs()
 case "record": record()
 case "hotkeys": hotkeys()
 case "av-permission":

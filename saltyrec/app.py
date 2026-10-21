@@ -13,6 +13,7 @@ from PySide6.QtCore import QRect
 
 from .overlays import AreaFrame, AreaPicker, CameraBubble, ControlBar, Countdown, DrawOverlay
 from .recorder import Recorder
+from .picker import WindowPicker
 from .stage import Preview, Stage
 from .theme import QSS
 
@@ -93,9 +94,10 @@ class Panel(QWidget):
                                                   ("area", "An area")], self.cfg.value("source", "screen"))
         self.source.buttonClicked.connect(self._source_changed)
         v.addWidget(self.source_box)
-        self.window_pick = QComboBox()
-        self.window_pick.setPlaceholderText("Pick a window")
-        self.window_pick.currentIndexChanged.connect(self._window_changed)
+        self.chosen = None             # the picked window's id
+        self.window_pick = QPushButton("Choose a window")
+        self.window_pick.setCursor(Qt.PointingHandCursor)
+        self.window_pick.clicked.connect(lambda: app.pick_window())
         v.addWidget(self.window_pick)
         area_row = QHBoxLayout()
         self.area_btn = QPushButton("Drag an area")
@@ -169,7 +171,7 @@ class Panel(QWidget):
         if self.source_value() == "area":
             self._check_source("screen")          # areas are picked fresh each session
         elif self.source_value() == "window":
-            self.refresh_windows()
+            self._check_source("screen")          # windows are picked fresh each session
         self._mode_changed()
         self._toggle_setup(self.cfg.value("setup_open", "false") == "true")
 
@@ -233,19 +235,17 @@ class Panel(QWidget):
         return self.source.checkedButton().property("value")
 
     def refresh_windows(self):
-        keep = self.window_pick.currentData()
+        """Fresh positions for the picked window (it may have moved since)."""
         self.windows = core.list_windows()
-        self.window_pick.blockSignals(True)
-        self.window_pick.clear()
-        for w in self.windows:
-            label_ = w["app"] if w["title"] in ("", w["app"]) else f"{w['app']}  ·  {w['title']}"
-            self.window_pick.addItem(self.window_pick.fontMetrics().elidedText(label_, Qt.ElideRight, 330), w["id"])
-        i = self.window_pick.findData(keep) if keep is not None else -1
-        self.window_pick.setCurrentIndex(i)
-        self.window_pick.blockSignals(False)
+        self._window_changed()
+
+    def set_window(self, win):
+        self.windows = [w for w in self.windows if w["id"] != win["id"]] + [win]
+        self.chosen = win["id"]
+        self._window_changed()
 
     def window_info(self):
-        return next((w for w in self.windows if w["id"] == self.window_pick.currentData()), None)
+        return next((w for w in self.windows if w["id"] == self.chosen), None)
 
     def target_rect(self):
         """The part of the screen to record, in global coordinates, or None for the whole screen."""
@@ -261,13 +261,18 @@ class Panel(QWidget):
         return QRect(round(w["x"] / k), round(w["y"] / k), round(w["width"] / k), round(w["height"] / k))
 
     def _source_changed(self, *_):
-        if self.source_value() == "window":
-            self.refresh_windows()
+        if self.source_value() == "window" and self.window_info() is None:
+            self.app.pick_window()
         if self.source_value() == "area" and self.area is None:
             self.app.pick_area()
         self._mode_changed()
 
     def _window_changed(self, *_):
+        w = self.window_info()
+        full = f"{w['app']}  ·  {w['title']}" if w else ""
+        self.window_pick.setText(self.window_pick.fontMetrics().elidedText(full, Qt.ElideRight, 300) + "   Change"
+                                 if w else "Choose a window")
+        self.window_pick.setToolTip(full)
         self.preview.set_target(self.target_rect())
         self._summarize()
 
@@ -387,6 +392,7 @@ class SaltyRec:
         self.countdown = Countdown()
         self.draw = DrawOverlay()
         self.picker = AreaPicker()
+        self.window_picker = WindowPicker()
         self.area_frame = AreaFrame()
         self.library = None
         self.jobs = set()
@@ -404,6 +410,7 @@ class SaltyRec:
         self.countdown.finished.connect(self._go)
         self.countdown.cancelled.connect(self._abort_countdown)
         self.picker.picked.connect(self._area_picked)
+        self.window_picker.picked.connect(self._window_picked)
         self.bar.pause_clicked.connect(self._pause)
         self.bar.draw_clicked.connect(self.toggle_draw)
         self.bar.stop_clicked.connect(self._stop)
@@ -530,8 +537,7 @@ class SaltyRec:
         if p.source_value() == "window" and p.mode_value() != "cam":
             p.refresh_windows()                     # the window may have moved since it was picked
             if p.window_info() is None:
-                p.show()
-                p.window_pick.showPopup()
+                self.pick_window()
                 return
         opts = p.capture_options()
         if osui.IS_MAC and opts["mode"] != "cam" and not self._screen_access():
@@ -548,6 +554,13 @@ class SaltyRec:
         self.bar.winId()             # native window must exist so capture can leave it out
         self.recorder.prepare()      # warm up capture during the countdown
         self.countdown.run()
+
+    def pick_window(self):
+        self.window_picker.open()
+
+    def _window_picked(self, win):
+        self.panel.set_window(win)
+        self.show_panel()
 
     def pick_area(self):
         self.panel.hide()

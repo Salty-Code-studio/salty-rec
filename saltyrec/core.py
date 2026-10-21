@@ -67,6 +67,27 @@ def list_windows():
     return helper_devices().get("windows", [])
 
 
+def window_thumbs():
+    """Like list_windows, plus a "thumb" PNG path per window for the visual picker."""
+    import tempfile
+    out = Path(tempfile.mkdtemp(prefix="saltyrec-thumbs-"))
+    if IS_WIN:
+        from .windows import list_windows as win_list, window_thumb
+        wins = win_list()
+        for w in wins:
+            t = window_thumb(w, out / f"win-{w['id']}.png")
+            if t:
+                w["thumb"] = t
+        return wins
+    if not HELPER.exists():
+        return []
+    try:
+        r = subprocess.run([str(HELPER), "thumbs", "--out", str(out)], capture_output=True, text=True, timeout=20)
+        return json.loads(r.stdout)
+    except Exception:
+        return list_windows()
+
+
 def list_devices():
     """Returns (screens, cameras, mics) as lists of (avfoundation index, name).
     On Windows: no screens (Qt lists those), cameras and mics as (dshow name, name)."""
