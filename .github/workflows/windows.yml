@@ -37,10 +37,15 @@ jobs:
         timeout-minutes: 12
         shell: pwsh
         run: |
-          $p = Start-Process dist/SaltyRec/SaltyRec.exe -ArgumentList "--selftest", "$PWD\selftest.json" -PassThru
-          if (-not $p.WaitForExit(600000)) { Stop-Process $p -Force; Get-Content selftest.json; throw "self-test hung" }
-          Get-Content selftest.json
-          if ($p.ExitCode -ne 0) { throw "self-test failed" }
+          $p = Start-Process dist/SaltyRec/SaltyRecCheck.exe -ArgumentList "--selftest", "$PWD\selftest.json" `
+               -RedirectStandardOutput out.txt -RedirectStandardError err.txt -NoNewWindow -PassThru
+          $done = $p.WaitForExit(600000)
+          if (-not $done) { Stop-Process $p -Force }
+          Write-Host "--- stdout"; Get-Content out.txt -ErrorAction SilentlyContinue
+          Write-Host "--- stderr"; Get-Content err.txt -ErrorAction SilentlyContinue
+          Write-Host "--- report"; Get-Content selftest.json -ErrorAction SilentlyContinue
+          if (-not $done) { throw "self-test hung" }
+          if ($p.ExitCode -ne 0) { throw "self-test failed ($($p.ExitCode))" }
 
       - name: Zip
         shell: pwsh

@@ -21,4 +21,7 @@ a = Analysis([str(ROOT / "packaging/entry.py")], pathex=[str(ROOT)], binaries=bi
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="SaltyRec", console=False,
           icon=str(ROOT / "packaging/icon.ico"))
-coll = COLLECT(exe, a.binaries, a.datas, name="SaltyRec")
+# same app with a console: errors print instead of hiding in a pop-up. Used by CI and for support.
+check = EXE(pyz, a.scripts, [], exclude_binaries=True, name="SaltyRecCheck", console=True,
+            icon=str(ROOT / "packaging/icon.ico"))
+coll = COLLECT(exe, check, a.binaries, a.datas, name="SaltyRec")
