@@ -52,10 +52,20 @@ func devices() {
                  "name": names[d.displayID] ?? "Display \(d.displayID)",
                  "x": d.frame.origin.x, "y": d.frame.origin.y]
             }
+            let me = getpid(), parent = getppid()
+            let windows = content.windows.filter {
+                $0.windowLayer == 0 && $0.isOnScreen && $0.frame.width >= 200 && $0.frame.height >= 150
+                    && !($0.title ?? "").isEmpty && $0.owningApplication != nil
+                    && $0.owningApplication!.processID != me && $0.owningApplication!.processID != parent
+            }.map { w -> [String: Any] in
+                ["id": w.windowID, "app": w.owningApplication!.applicationName, "pid": w.owningApplication!.processID,
+                 "title": w.title ?? "", "x": w.frame.origin.x, "y": w.frame.origin.y,
+                 "width": w.frame.width, "height": w.frame.height]
+            }
             let mics = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone, .external],
                                                         mediaType: .audio, position: .unspecified).devices
                 .map { ["uid": $0.uniqueID, "name": $0.localizedName] }
-            let data = try JSONSerialization.data(withJSONObject: ["displays": displays, "mics": mics])
+            let data = try JSONSerialization.data(withJSONObject: ["displays": displays, "mics": mics, "windows": windows])
             say(String(data: data, encoding: .utf8)!)
             exit(0)
         } catch {
@@ -140,20 +150,33 @@ final class Recording: NSObject, SCStreamDelegate, SCStreamOutput {
         let maxWidth = Int(arg("--max-width") ?? "") ?? 2560
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
-            guard let display = content.displays.first(where: { $0.displayID == displayID }) ?? content.displays.first
+            // --rect x,y,w,h in global points: record just that part of the screen (an area, or a window's frame)
+            let rect: CGRect? = arg("--rect").flatMap { s in
+                let n = s.split(separator: ",").compactMap { Double($0) }
+                return n.count == 4 ? CGRect(x: n[0], y: n[1], width: n[2], height: n[3]) : nil
+            }
+            let byRect = rect.flatMap { r in content.displays.first { $0.frame.contains(CGPoint(x: r.midX, y: r.midY)) } }
+            guard let display = byRect ?? content.displays.first(where: { $0.displayID == displayID }) ?? content.displays.first
             else { fail("no display", 3) }
             let hidden = content.windows.filter {
                 $0.owningApplication?.processID == parent && ($0.title ?? "").hasPrefix(hidePrefix)
             }
             let filter = SCContentFilter(display: display, excludingWindows: hidden)
             let scale = CGFloat(filter.pointPixelScale)
-            var w = Int(filter.contentRect.width * scale), h = Int(filter.contentRect.height * scale)
+            var source: CGRect? = nil
+            if let r = rect {
+                source = r.offsetBy(dx: -display.frame.origin.x, dy: -display.frame.origin.y)
+                    .intersection(CGRect(origin: .zero, size: display.frame.size))
+            }
+            let size = source?.size ?? filter.contentRect.size
+            var w = Int(size.width * scale), h = Int(size.height * scale)
             if w > maxWidth { h = h * maxWidth / w; w = maxWidth }
             width = w / 2 * 2
             height = h / 2 * 2
             let cfg = SCStreamConfiguration()
             cfg.width = width
             cfg.height = height
+            if let src = source { cfg.sourceRect = src }
             cfg.minimumFrameInterval = CMTime(value: 1, timescale: 30)
             cfg.queueDepth = 8
             cfg.showsCursor = true

@@ -24,13 +24,14 @@ def main():
     tmp = Path(tempfile.mkdtemp())
 
     def ffmpeg():
-        r = subprocess.run([core.FFMPEG, "-version"], capture_output=True, text=True, **core.NO_WINDOW)
+        r = subprocess.run([core.FFMPEG, "-version"], capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                           timeout=60, **core.NO_WINDOW)
         return r.stdout.splitlines()[0]
 
     def capture():
         src = (["-f", "gdigrab", "-framerate", "15", "-i", "desktop"] if core.IS_WIN
                else ["-f", "lavfi", "-i", "testsrc=size=640x360:rate=15"])
-        core.run([core.FFMPEG, "-y", "-v", "error", *src, "-t", "2",
+        core.run([core.FFMPEG, "-y", "-v", "error", "-nostdin", *src, "-t", "2",
                   "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p", "-c:v", "libx264", "-preset", "ultrafast",
                   tmp / "cap.mp4"])
         return f"{core.duration(tmp / 'cap.mp4'):.2f}s"
@@ -49,8 +50,11 @@ def main():
         from . import app, library, overlays, recorder  # noqa: F401
         return "ok"
 
-    for name, fn in (("ffmpeg", ffmpeg), ("capture", capture), ("speech", speech), ("ui", ui_imports)):
+    for name, fn in (("ffmpeg", ffmpeg), ("ui", ui_imports), ("capture", capture), ("speech", speech)):
+        report["running"] = name                    # written as we go, so a hang shows where it stopped
+        out.write_text(json.dumps(report, indent=2))
         _check(name, fn, report)
+    report.pop("running", None)
     report["ok"] = all(v["ok"] for v in report.values() if isinstance(v, dict))
     out.write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))

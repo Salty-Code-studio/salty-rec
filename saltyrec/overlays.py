@@ -2,7 +2,7 @@
 import time
 
 from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QCursor, QFont, QGuiApplication, QPainter, QPainterPath, QPen
 from PySide6.QtMultimedia import QCamera, QMediaCaptureSession, QMediaDevices, QVideoSink
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMenu, QPushButton, QWidget
 
@@ -37,6 +37,7 @@ class CameraBubble(_Draggable):
     SHAPES = {"round": "Round", "square": "Square", "wide": "Wide", "tall": "Tall"}
     shape_changed = Signal(str)
     size_changed = Signal(str)
+    frame_ready = Signal(object)          # QImage, feeds the preview in the panel
 
     def __init__(self):
         super().__init__()
@@ -136,6 +137,7 @@ class CameraBubble(_Draggable):
     def _frame(self, frame):
         self.image = frame.toImage()
         self.update()
+        self.frame_ready.emit(self.image)
 
     def paintEvent(self, e):
         p = QPainter(self)
@@ -202,7 +204,8 @@ class ControlBar(_Draggable):
 
     def _pulse(self):
         self._blink = not self._blink
-        color = "#8A9799" if self._paused else (CORAL if self._blink else "#7a3a31")
+        # status is ink, never the signal colour: a sand pulse while recording, dim when paused
+        color = "#5E6F72" if self._paused else (SAND if self._blink else "#8E8778")
         self.dot.setStyleSheet(f"background:{color};border-radius:5px;")
 
     def set_paused(self, paused):
@@ -386,3 +389,99 @@ class DrawOverlay(QWidget):
                 path.quadTo(a, QPointF((a.x() + b.x()) / 2, (a.y() + b.y()) / 2))
             path.lineTo(pts[-1])
             p.drawPath(path)
+
+
+class AreaPicker(QWidget):
+    """Full-screen veil: drag a rectangle to choose what to record. Esc or right-click cancels."""
+    picked = Signal(object)        # QRect in global coordinates, or None
+
+    def __init__(self):
+        super().__init__(None, FLOAT)
+        self.setWindowTitle("salty-rec-hide-picker")
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setCursor(Qt.CrossCursor)
+        self.a = self.b = None
+
+    def run(self):
+        screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
+        self.setGeometry(screen.geometry())
+        self.a = self.b = None
+        self.show()
+        osui.float_everywhere(self)
+        self.raise_()
+        self.activateWindow()
+
+    def _rect(self):
+        from PySide6.QtCore import QRect
+        return QRect(self.a, self.b).normalized() if self.a and self.b else None
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.RightButton:
+            return self._done(None)
+        self.a = self.b = e.position().toPoint()
+
+    def mouseMoveEvent(self, e):
+        if self.a:
+            self.b = e.position().toPoint()
+            self.update()
+
+    def mouseReleaseEvent(self, e):
+        r = self._rect()
+        self._done(r.translated(self.geometry().topLeft()) if r and r.width() > 80 and r.height() > 60 else None)
+
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key_Escape:
+            self._done(None)
+
+    def _done(self, rect):
+        self.hide()
+        self.picked.emit(rect)
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        veil = QPainterPath()
+        veil.addRect(QRectF(self.rect()))
+        r = self._rect()
+        if r:
+            hole = QPainterPath()
+            hole.addRect(QRectF(r))
+            veil = veil.subtracted(hole)
+        p.fillPath(veil, QColor(28, 43, 46, 120))
+        p.setPen(QColor(SAND))
+        f = QFont("Inter")
+        f.setPixelSize(13)
+        p.setFont(f)
+        if r:
+            p.setPen(QPen(QColor(SAND), 2))
+            p.setBrush(Qt.NoBrush)
+            p.drawRect(QRectF(r))
+            p.drawText(r.adjusted(0, -22, 0, 0).topLeft() + QPoint(0, 14), f"{r.width()} × {r.height()}")
+        else:
+            p.drawText(self.rect(), Qt.AlignCenter, "Drag over the part you want to record.  Esc cancels.")
+
+
+class AreaFrame(QWidget):
+    """A thin outline around the recorded area. Click-through and left out of the video."""
+
+    def __init__(self):
+        super().__init__(None, FLOAT | Qt.WindowTransparentForInput)
+        self.setWindowTitle("salty-rec-hide-area")
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WA_MacAlwaysShowToolWindow)
+
+    def frame(self, rect):
+        self.setGeometry(rect.adjusted(-3, -3, 3, 3))
+        self.show()
+        osui.float_everywhere(self)
+        osui.hide_from_capture(self)
+        osui.ignore_mouse(self, True)
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        pen = QPen(QColor(SAND), 2, Qt.DashLine)
+        p.setPen(pen)
+        p.drawRect(QRectF(self.rect()).adjusted(1, 1, -1, -1))
+        p.setPen(QPen(QColor(INK), 1))
+        p.drawRect(QRectF(self.rect()).adjusted(0, 0, -0.5, -0.5))

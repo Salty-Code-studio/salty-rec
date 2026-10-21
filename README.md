@@ -10,6 +10,7 @@ Made by [Salty Code Studio](https://saltycodestudio.com). MIT licensed.
 |---|---|---|---|
 | Install | None, open the link | Download, unzip, run | Build script |
 | Screen + camera bubble | Yes | Yes | Yes |
+| Whole screen, one window or an area | Screen, window or tab from the browser picker | Yes | Yes |
 | Bubble shapes and sizes | Yes | Yes | Yes |
 | Draw on screen | On the preview | Anywhere on screen | Anywhere on screen |
 | Computer sound | Tab or screen sound when the browser offers it | Yes | Yes |
@@ -37,6 +38,7 @@ cd salty-rec && ./build-app.sh
 This builds `~/Applications/Salty Rec.app` and fetches the speech model once (190 MB). On first use, macOS asks for Camera, Microphone and Screen Recording access. Allow all three. Recordings go to `Movies/Salty Rec`.
 
 ## Using it
+- **What to record:** Whole screen, One window (for example only Chrome) or An area you drag. Picking a window brings it to the front when you start. Your bubble moves inside the recorded part, and a thin outline that stays out of the video shows the edges.
 - **Bubble:** drag it anywhere. Double-click to change its size, or right-click for Round, Square, Wide or Tall. You see yourself in it before and during the recording.
 - **Recording:** a 3-2-1 countdown, then a small control bar with Pause, Draw, Restart, Cancel and Stop. The control bar stays out of the video.
 - **Drawing:** coral pen. Strokes fade after a few seconds. Right-click clears them and Esc stops drawing.

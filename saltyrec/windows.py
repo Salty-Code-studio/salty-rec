@@ -61,3 +61,40 @@ def ignore_mouse(widget, ignore: bool):
 
 def set_level(widget, level: int):
     float_everywhere(widget)
+
+
+def list_windows():
+    """Visible top-level windows with a title: [{id, app, title, x, y, width, height}] in physical pixels."""
+    import ctypes.wintypes as wt
+    u, out = _user32(), []
+    me = ctypes.windll.kernel32.GetCurrentProcessId()
+
+    @ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
+    def each(hwnd, _):
+        if not u.IsWindowVisible(hwnd) or u.IsIconic(hwnd):
+            return True
+        n = u.GetWindowTextLengthW(hwnd)
+        if not n:
+            return True
+        buf = ctypes.create_unicode_buffer(n + 1)
+        u.GetWindowTextW(hwnd, buf, n + 1)
+        pid = wt.DWORD()
+        u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        r = wt.RECT()
+        u.GetWindowRect(hwnd, ctypes.byref(r))
+        w, h = r.right - r.left, r.bottom - r.top
+        if pid.value != me and w >= 200 and h >= 150 and buf.value not in ("Program Manager", "Settings"):
+            title = buf.value
+            out.append({"id": int(hwnd), "app": title.split(" - ")[-1], "title": title,
+                        "x": r.left, "y": r.top, "width": w, "height": h})
+        return True
+
+    u.EnumWindows(each, 0)
+    return out
+
+
+def activate(win):
+    try:
+        _user32().SetForegroundWindow(win["id"])
+    except Exception:
+        pass

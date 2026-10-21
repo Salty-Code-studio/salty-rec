@@ -15,91 +15,129 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
+  /* Salty Rec tokens, shared with Yabi Flow Desk.
+     Three rules: (1) three planes: huge type at the back, the subject in the middle, the button on top.
+     (2) Coral is the SIGNAL colour. It only ever means "tap this". Status is ink, never coral.
+     (3) Skip the middle sizes: one --fs-huge thing per screen, everything else body, small or tiny. */
   :root {
-    --sand: #F2EBDD; --teal: #0E3A40; --coral: #FF6F59; --sky: #4FA8C9; --ink: #1C2B2E;
-    --line: rgba(14,58,64,.14); --soft: rgba(14,58,64,.06); --muted: rgba(28,43,46,.62);
-    --card: #FBF7EF; --white: #fff; --err: #B3402F;
+    --sand: #F2EBDD; --sand-2: #EAE0CD; --panel: #FCFAF4; --fill: #F4EEE1; --line: #E3DAC8; --line-soft: #EDE5D6;
+    --teal: #0E3A40; --teal-700: #0A2C31; --teal-600: #14474E; --ink: #1C2B2E; --ink-soft: #586A6D; --ink-mute: #8B9B9D;
+    --coral: #FF6F59; --coral-600: #F2563F;
+    --signal: var(--coral); --signal-600: var(--coral-600); --signal-ink: #fff;
+    --danger: #C0473A;
+    --fs-huge: clamp(2.75rem, 7vw, 4.5rem); --fs-body: .95rem; --fs-small: .82rem; --fs-tiny: .7rem;
+    --font-display: "Space Grotesk", system-ui, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    --font-body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --radius: 14px; --radius-sm: 10px; --radius-lg: 18px;
+    --ease: cubic-bezier(.22,.61,.36,1); --dur-fast: .12s; --dur-base: .2s;
+    --shadow-sm: 0 1px 2px rgba(14,58,64,.06), 0 1px 8px rgba(14,58,64,.05);
+    --shadow-md: 0 12px 30px -14px rgba(14,58,64,.22);
+    --shadow-lg: 0 24px 60px -22px rgba(14,58,64,.30);
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
-  body { margin: 0; background: var(--sand); color: var(--ink); font: 15px/1.5 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 16px 64px; }
-  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
-  .brand { font: 600 20px 'Space Grotesk', sans-serif; color: var(--teal); letter-spacing: -.01em; }
-  .brand b { color: var(--coral); font-weight: 600; margin-right: 6px; }
-  .label { font: 500 11px 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
-  h1 { font: 600 clamp(28px, 4vw, 40px)/1.1 'Space Grotesk', sans-serif; color: var(--teal); margin: 0 0 6px; letter-spacing: -.02em; }
-  .sub { color: var(--muted); margin: 0 0 28px; }
-  .grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; box-shadow: 0 1px 2px rgba(14,58,64,.04), 0 8px 24px rgba(14,58,64,.05); min-width: 0; }
-  @media (max-width: 480px) { .card { padding: 14px; } }
-  .stage { position: relative; aspect-ratio: 16/9; border-radius: 12px; overflow: hidden; background: var(--ink); display: grid; place-items: center; touch-action: none; }
-  .stage.portrait { aspect-ratio: 3/4; }
+  body { margin: 0; background: var(--sand); color: var(--ink); font: 400 var(--fs-body)/1.5 var(--font-body); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 56px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .brand { font: 600 var(--fs-body) var(--font-display); color: var(--teal); letter-spacing: -.01em; }
+  .brand b { font-weight: 600; margin-right: 6px; }
+  .tiny { font: 500 var(--fs-tiny) var(--font-mono); text-transform: uppercase; letter-spacing: .12em; color: var(--ink-mute); }
+  .small { font-size: var(--fs-small); color: var(--ink-soft); }
+
+  /* ---------- the three planes ---------- */
+  .planes { position: relative; margin-top: 28px; }
+  /* back plane: huge type, tone on tone, so it reads as depth rather than a heading */
+  .back { margin: 0; font: 600 var(--fs-huge)/.86 var(--font-display); letter-spacing: -.04em; color: rgba(14,58,64,.15);
+    white-space: nowrap; overflow: hidden; text-overflow: clip; user-select: none; font-variant-numeric: tabular-nums;
+    transition: color var(--dur-base) var(--ease); }
+  body.recording .back { color: rgba(14,58,64,.22); }
+  /* middle plane: the subject, a raised card that overlaps the bottom of the big type */
+  .subject { position: relative; margin-top: calc(var(--fs-huge) * -.3); background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius-lg); padding: 10px; box-shadow: var(--shadow-lg); }
+  .stage { position: relative; aspect-ratio: 16/9; border-radius: var(--radius); overflow: hidden; background: var(--ink); display: grid; place-items: center; touch-action: none; }
+  .stage.portrait { aspect-ratio: 3/4; max-height: 70vh; margin: 0 auto; }
   .stage video, .stage canvas { width: 100%; height: 100%; object-fit: contain; display: block; }
   #camView.mirror { transform: scaleX(-1); }
-  #canvas.drag { cursor: grab; }
-  #canvas.dragging { cursor: grabbing; }
-  #canvas.drawing { cursor: crosshair; }
-  .stage .empty { color: rgba(242,235,221,.55); font: 500 12px 'JetBrains Mono', monospace; letter-spacing: .1em; text-transform: uppercase; position: absolute; text-align: center; padding: 0 16px; }
-  .count { position: absolute; inset: 0; display: none; place-items: center; background: rgba(28,43,46,.72); color: var(--sand); font: 600 120px 'Space Grotesk', sans-serif; }
-  .hint { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
-  .field { margin-bottom: 16px; }
-  .field > .label { display: block; margin-bottom: 8px; }
-  .seg { display: flex; gap: 4px; background: var(--soft); padding: 4px; border-radius: 10px; }
-  .seg + .seg { margin-top: 6px; }
-  .seg button { flex: 1; min-width: 0; border: 0; background: transparent; padding: 8px 4px; border-radius: 7px; font: 500 13px Inter, sans-serif; color: var(--muted); cursor: pointer; min-height: 36px; }
-  .seg button[aria-pressed="true"] { background: var(--white); color: var(--teal); box-shadow: 0 1px 2px rgba(14,58,64,.1); }
-  .seg button:disabled { opacity: .4; cursor: not-allowed; }
-  select, input[type=text] { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--white); font: 16px Inter, sans-serif; color: var(--ink); min-height: 42px; }
-  .check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
-  .check input { accent-color: var(--teal); width: 16px; height: 16px; }
-  button:focus-visible, select:focus-visible, input:focus-visible, video:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
-  .btn { border: 0; border-radius: 999px; padding: 12px 20px; font: 600 15px 'Space Grotesk', sans-serif; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 46px; transition: transform .15s ease, background .15s ease; }
+  #canvas.drag { cursor: grab; } #canvas.dragging { cursor: grabbing; } #canvas.drawing { cursor: crosshair; }
+  .stage .empty { color: rgba(242,235,221,.5); font: 500 var(--fs-tiny) var(--font-mono); letter-spacing: .12em; text-transform: uppercase; position: absolute; text-align: center; padding: 0 16px; }
+  .count { position: absolute; inset: 0; display: none; place-items: center; background: rgba(28,43,46,.72); color: var(--sand); font: 600 var(--fs-huge) var(--font-display); }
+  /* top plane: the one thing to tap, overlapping the card's bottom edge */
+  .cta { position: relative; z-index: 2; display: flex; justify-content: center; margin-top: -26px; pointer-events: none; }
+  .cta .btn { pointer-events: auto; }
+
+  /* ---------- buttons: coral = tap this. Everything else is quiet ink. ---------- */
+  .btn { border: 1px solid var(--line); background: var(--panel); color: var(--teal); border-radius: 999px; padding: 9px 16px; min-height: 40px;
+    font: 500 var(--fs-small) var(--font-body); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform var(--dur-fast) var(--ease), background var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease); }
+  .btn:hover { border-color: var(--ink-mute); }
   .btn:active { transform: scale(.98); }
-  .btn-rec { background: var(--coral); color: var(--white); width: 100%; }
-  .btn-rec .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--white); }
-  .btn-ghost { background: transparent; color: var(--teal); border: 1px solid var(--line); }
-  .btn-ghost[aria-pressed="true"] { background: var(--coral); color: var(--white); border-color: var(--coral); }
-  .btn-teal { background: var(--teal); color: var(--sand); }
-  .btn-small { padding: 8px 14px; min-height: 38px; font-size: 14px; }
   .btn:disabled { opacity: .45; cursor: not-allowed; }
-  .live { display: none; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
-  .live .row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .timer { font: 500 22px 'JetBrains Mono', monospace; color: var(--teal); display: flex; align-items: center; gap: 10px; }
-  .timer .pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--coral); animation: p 1.2s ease-in-out infinite; }
-  .paused .timer .pulse { animation: none; background: var(--muted); }
-  @keyframes p { 50% { opacity: .25; } }
-  @media (prefers-reduced-motion: reduce) { .timer .pulse { animation: none; } }
-  .note { font-size: 13px; color: var(--muted); margin: 12px 0 0; }
-  .phone-note { background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--ink); margin: 0 0 16px; }
-  .takes { margin-top: 20px; }
-  .take { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
-  .take video { width: 150px; aspect-ratio: 16/9; border-radius: 8px; background: var(--ink); object-fit: cover; cursor: pointer; }
-  .take .meta { font: 500 12px 'JetBrains Mono', monospace; color: var(--muted); }
-  .take .name { font-weight: 500; overflow-wrap: anywhere; }
-  @media (max-width: 560px) { .take { grid-template-columns: minmax(0, 1fr); } .take video { width: 100%; } }
+  .btn[aria-pressed="true"] { background: var(--teal); color: var(--sand); border-color: var(--teal); }
+  .btn--signal { background: var(--signal); color: var(--signal-ink); border-color: transparent; min-height: 52px; padding: 0 28px;
+    font: 600 var(--fs-body) var(--font-display); box-shadow: 0 10px 24px -10px rgba(242,86,63,.6), 0 0 0 6px var(--sand); }
+  .btn--signal:hover { background: var(--signal-600); border-color: transparent; }
+  .btn--text { border-color: transparent; background: transparent; padding: 6px 4px; min-height: 32px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
+  .btn--text:hover { text-decoration-color: var(--ink-mute); }
+  button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible, video:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+  /* ---------- quiet row under the stage ---------- */
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .row .group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .rec-state { display: inline-flex; align-items: center; gap: 8px; font: 500 var(--fs-small) var(--font-mono); color: var(--teal); font-variant-numeric: tabular-nums; }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 0 rgba(14,58,64,.35); animation: p 1.4s var(--ease) infinite; }
+  .paused .pulse { animation: none; background: var(--ink-mute); }
+  @keyframes p { 0% { box-shadow: 0 0 0 0 rgba(14,58,64,.35); } 100% { box-shadow: 0 0 0 8px rgba(14,58,64,0); } }
+  @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } * { transition: none !important; } }
+
+  .seg { display: inline-flex; gap: 2px; background: var(--fill); border: 1px solid var(--line-soft); padding: 3px; border-radius: var(--radius-sm); max-width: 100%; }
+  .seg button { border: 0; background: transparent; padding: 6px 12px; border-radius: 7px; font: 500 var(--fs-small) var(--font-body); color: var(--ink-soft); cursor: pointer; min-height: 32px; white-space: nowrap; }
+  .seg button[aria-pressed="true"] { background: var(--panel); color: var(--teal); box-shadow: var(--shadow-sm); }
+  .seg button:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ---------- setup, tucked away until asked for ---------- */
+  details.setup { margin-top: 14px; border-top: 1px solid var(--line); }
+  details.setup summary { list-style: none; cursor: pointer; padding: 12px 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  details.setup summary::-webkit-details-marker { display: none; }
+  details.setup summary .chev { width: 8px; height: 8px; border-right: 1.5px solid var(--ink-mute); border-bottom: 1.5px solid var(--ink-mute); transform: rotate(45deg); transition: transform var(--dur-base) var(--ease); }
+  details.setup[open] summary .chev { transform: rotate(225deg); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 18px; padding-bottom: 6px; }
+  .field { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .field .seg { width: fit-content; }
+  .field .seg + .seg { margin-top: 4px; }
+  select, input[type=text] { width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); font: 16px var(--font-body); color: var(--ink); min-height: 40px; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: var(--fs-small); cursor: pointer; color: var(--ink); }
+  .check input { accent-color: var(--teal); width: 16px; height: 16px; }
+
+  .note { font-size: var(--fs-small); color: var(--ink-soft); margin: 10px 0 0; }
+  .phone-note { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; font-size: var(--fs-small); margin: 14px 0 0; }
+  .err { color: var(--danger); font-size: var(--fs-small); margin: 10px 0 0; min-height: 1em; }
+
+  /* ---------- takes ---------- */
+  .takes { margin-top: 28px; }
+  .take { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+  .take video { width: 112px; aspect-ratio: 16/9; border-radius: 8px; background: var(--ink); object-fit: cover; cursor: pointer; }
+  .take .name { font-size: var(--fs-small); font-weight: 500; overflow-wrap: anywhere; }
+  .take .meta { font: 500 var(--fs-tiny) var(--font-mono); color: var(--ink-mute); letter-spacing: .06em; }
+  @media (max-width: 520px) { .take { grid-template-columns: 88px minmax(0, 1fr); } .take video { width: 88px; } .take .btn { grid-column: 1 / -1; justify-self: start; } }
+
   .hidden-src { position: fixed; left: -9999px; top: 0; width: 2px; height: 2px; opacity: 0; pointer-events: none; }
-  .err { color: var(--err); font-size: 13px; margin-top: 10px; min-height: 1em; }
-  footer { margin-top: 28px; font-size: 13px; color: var(--muted); }
-  footer a { color: var(--teal); }
+  footer { margin-top: 32px; }
   [hidden] { display: none !important; }
+  @media (max-width: 520px) { .subject { padding: 6px; border-radius: var(--radius); } .stage { border-radius: var(--radius-sm); } .planes { margin-top: 20px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div class="brand"><b>~&lt;</b>salty rec</div>
-    <span class="label">Runs in your browser. Nothing leaves this device.</span>
+    <span class="tiny">Runs in your browser. Nothing leaves this device.</span>
   </header>
 
-  <h1>Record it once. Send it anywhere.</h1>
-  <p class="sub" id="sub">Screen, camera bubble and voice. Saves straight to your device.</p>
-
-  <div class="grid">
-    <div class="card">
+  <section class="planes" aria-label="Recorder">
+    <p class="back" id="big" aria-hidden="true">Ready.</p>
+    <div class="subject">
       <div class="stage" id="stage">
         <span class="empty" id="empty">Preview appears here</span>
         <canvas id="canvas" hidden aria-label="Recording preview"></canvas>
@@ -107,48 +145,58 @@
         <video id="review" controls playsinline hidden aria-label="Last take"></video>
         <div class="count" id="count" aria-live="assertive">3</div>
       </div>
-      <p class="hint" id="stageHint"></p>
-      <div class="live" id="live">
-        <div class="timer" aria-live="off"><span class="pulse"></span><span id="time">0:00</span></div>
-        <div class="row">
-          <button class="btn btn-ghost btn-small" id="drawBtn" aria-pressed="false" title="Draw on the preview. Your strokes show up in the recording and fade after a few seconds.">Draw</button>
-          <button class="btn btn-ghost btn-small" id="pauseBtn">Pause</button>
-          <button class="btn btn-teal btn-small" id="stopBtn">Stop</button>
-        </div>
-      </div>
-      <div class="takes" id="takes" hidden>
-        <span class="label">This session</span>
-        <div id="takeList"></div>
-      </div>
     </div>
+    <div class="cta">
+      <button class="btn btn--signal" id="recBtn">Record</button>
+      <button class="btn btn--signal" id="stopBtn" hidden>Stop</button>
+      <button class="btn btn--signal" id="saveBtn" hidden>Save video</button>
+    </div>
+  </section>
 
-    <div class="card" id="setup">
-      <p class="phone-note" id="phoneNote" hidden>Phones don't let websites record the screen. Use your phone's own screen recorder for that. Here you can record yourself.</p>
-      <div class="field">
-        <span class="label" id="modeLab">Record</span>
-        <div class="seg" id="mode" role="group" aria-labelledby="modeLab">
-          <button aria-pressed="true" data-v="both">Screen + cam</button>
-          <button aria-pressed="false" data-v="screen">Screen</button>
-          <button aria-pressed="false" data-v="cam">Cam</button>
-        </div>
-      </div>
+  <!-- quiet controls: setup when idle, draw and pause while recording, record again after -->
+  <div class="row" id="idleRow">
+    <div class="seg" id="mode" role="group" aria-label="What to record">
+      <button aria-pressed="true" data-v="both">Screen and me</button>
+      <button aria-pressed="false" data-v="screen">Screen</button>
+      <button aria-pressed="false" data-v="cam">Me</button>
+    </div>
+    <span class="small" id="stageHint"></span>
+  </div>
+  <div class="row" id="live" hidden>
+    <span class="rec-state" aria-live="off"><span class="pulse"></span><span id="time">0:00</span><span id="recWord">Recording</span></span>
+    <div class="group">
+      <button class="btn" id="drawBtn" aria-pressed="false" title="Draw on the preview. Your strokes show up in the recording and fade after a few seconds.">Draw</button>
+      <button class="btn" id="pauseBtn">Pause</button>
+    </div>
+  </div>
+  <div class="row" id="doneRow" hidden>
+    <span class="small" id="doneMeta"></span>
+    <button class="btn btn--text" id="againBtn">Record again</button>
+  </div>
+
+  <p class="phone-note" id="phoneNote" hidden>Phones don't let websites record the screen. Use your phone's own screen recorder for that. Here you can record yourself.</p>
+  <p class="err" id="err" role="alert"></p>
+
+  <details class="setup" id="setup">
+    <summary><span class="tiny">Set up camera, mic and bubble</span><span class="chev" aria-hidden="true"></span></summary>
+    <div class="grid">
       <div class="field" id="camField">
-        <label class="label" for="camSel">Camera</label>
+        <label class="tiny" for="camSel">Camera</label>
         <select id="camSel"></select>
       </div>
       <div class="field" id="facingField" hidden>
-        <span class="label" id="facingLab">Camera</span>
+        <span class="tiny" id="facingLab">Camera</span>
         <div class="seg" id="facing" role="group" aria-labelledby="facingLab">
           <button aria-pressed="true" data-v="user">Front</button>
           <button aria-pressed="false" data-v="environment">Back</button>
         </div>
       </div>
       <div class="field">
-        <label class="label" for="micSel">Microphone</label>
+        <label class="tiny" for="micSel">Microphone</label>
         <select id="micSel"></select>
       </div>
       <div class="field" id="bubbleField">
-        <span class="label" id="bubbleLab">Bubble</span>
+        <span class="tiny" id="bubbleLab">Bubble</span>
         <div class="seg" id="size" role="group" aria-labelledby="bubbleLab">
           <button aria-pressed="false" data-v="0.2">Small</button>
           <button aria-pressed="true" data-v="0.28">Medium</button>
@@ -161,20 +209,24 @@
           <button aria-pressed="false" data-v="tall">Tall</button>
         </div>
       </div>
-      <div class="field" id="sysField">
-        <label class="check"><input type="checkbox" id="sysAudio" checked> Include tab or computer sound</label>
-      </div>
       <div class="field">
-        <label class="label" for="title">Title</label>
+        <label class="tiny" for="title">Name the take</label>
         <input type="text" id="title" placeholder="Walkthrough for client" autocomplete="off">
       </div>
-      <button class="btn btn-rec" id="recBtn"><span class="dot"></span>Start recording</button>
-      <p class="err" id="err" role="alert"></p>
-      <p class="note" id="deskNote">Pick a screen, window or tab when your browser asks. Drag the bubble to move it. Chrome and Edge also give you a small floating control window.</p>
+      <div class="field" id="sysField">
+        <span class="tiny">Sound</span>
+        <label class="check"><input type="checkbox" id="sysAudio" checked> Include tab or computer sound</label>
+      </div>
     </div>
+    <p class="note" id="deskNote">Pick a screen, window or tab when your browser asks. Drag the bubble to move it. Chrome and Edge also give you a small floating control window.</p>
+  </details>
+
+  <div class="takes" id="takes" hidden>
+    <span class="tiny">This session</span>
+    <div id="takeList"></div>
   </div>
 
-  <footer>Free and open source. Videos save to your device only.</footer>
+  <footer class="tiny">Free and open source. Videos save to your device only.</footer>
 </div>
 
 <video id="screenSrc" class="hidden-src" muted playsinline></video>
@@ -194,7 +246,7 @@ const state = {
   mode: canScreen ? 'both' : 'cam', size: 0.28, shape: 'round', facing: 'user', pos: null,
   rec: null, chunks: [], screen: null, cam: null, mic: null, audioCtx: null, worker: null,
   start: 0, pausedFor: 0, pauseAt: 0, pip: null, frames: { screen: null, cam: null }, readers: { screen: null, cam: null },
-  drawing: false, strokes: [], drag: null, camToken: 0, recording: false,
+  drawing: false, strokes: [], drag: null, camToken: 0, recording: false, phase: 'idle', takes: [], last: null,
 };
 
 /* ---------- controls ---------- */
@@ -219,7 +271,7 @@ function syncFields() {
   $('#bubbleField').hidden = m !== 'both';
   $('#sysField').hidden = m === 'cam';
   $('#drawBtn').hidden = m === 'cam';
-  $('#stageHint').textContent = m === 'both' ? 'Drag the bubble to where you want it.' : '';
+  $('#stageHint').textContent = m === 'both' ? 'Drag the bubble to place it.' : '';
   showStage(m === 'cam' ? 'cam' : 'canvas');
   fitStage();
 }
@@ -227,7 +279,6 @@ function syncFields() {
 if (!canScreen) {
   $('#phoneNote').hidden = false;
   $('#deskNote').hidden = true;
-  $('#sub').textContent = 'Camera and voice. Saves straight to your device.';
   $('#mode').querySelectorAll('button').forEach(b => {
     b.disabled = b.dataset.v !== 'cam';
     b.setAttribute('aria-pressed', b.dataset.v === 'cam');
@@ -523,6 +574,7 @@ async function start() {
     showStage('canvas');
   }
   setupLock(true);
+  setPhase('count');
   await countdown();
   if (!state.recording) return;
 
@@ -537,7 +589,7 @@ async function start() {
   state.rec.onstop = finish;
   state.rec.start(1000);
   state.start = performance.now(); state.pausedFor = 0; state.pauseAt = 0;
-  $('#live').style.display = 'flex';
+  setPhase('live');
   if (canScreen) openPip();
 }
 
@@ -555,7 +607,7 @@ function elapsed() {
 const fmt = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 function tick() {
   if (!state.rec) return;
-  const t = fmt(elapsed()); $('#time').textContent = t;
+  const t = fmt(elapsed()); $('#time').textContent = t; $('#big').textContent = t;
   if (state.pip) state.pip.document.getElementById('t').textContent = t;
 }
 
@@ -566,6 +618,7 @@ function togglePause() {
   const paused = state.rec.state === 'paused';
   document.body.classList.toggle('paused', paused);
   $('#pauseBtn').textContent = paused ? 'Resume' : 'Pause';
+  $('#recWord').textContent = paused ? 'Paused' : 'Recording';
   if (state.pip) { state.pip.document.body.classList.toggle('paused', paused); state.pip.document.getElementById('p').textContent = paused ? 'Resume' : 'Pause'; }
 }
 
@@ -588,23 +641,52 @@ function finish() {
   const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
   const name = `${title}_${stamp}.${ext}`;
   $('#review').src = url; showStage('review');
-  addTake(url, name, blob.size, dur);
-  download(url, name);
+  const take = { url, name, saved: false };
+  state.last = take; state.takes.push(take);
+  addTake(take, blob.size, dur);
+  setPhase('done');
+  $('#big').textContent = fmt(dur);
+  $('#doneMeta').textContent = `${fmt(dur)} · ${(blob.size / 1048576).toFixed(1)} MB · not saved yet`;
+}
+
+function save(take) {
+  download(take.url, take.name);
+  take.saved = true;
+  if (take === state.last) $('#doneMeta').textContent = $('#doneMeta').textContent.replace('not saved yet', 'saved');
+}
+/* takes only live in this tab until saved, so warn before closing with unsaved ones */
+window.addEventListener('beforeunload', e => { if (state.takes.some(t => !t.saved)) { e.preventDefault(); e.returnValue = ''; } });
+
+/* one phase at a time decides the big word, the one coral button and the quiet row */
+function setPhase(phase) {
+  state.phase = phase;
+  document.body.classList.toggle('recording', phase === 'live');
+  $('#recBtn').hidden = phase !== 'idle';
+  $('#stopBtn').hidden = phase !== 'live';
+  $('#saveBtn').hidden = phase !== 'done';
+  $('#idleRow').hidden = phase !== 'idle';
+  $('#live').hidden = phase !== 'live';
+  $('#doneRow').hidden = phase !== 'done';
+  if (phase === 'idle') $('#big').textContent = 'Ready.';
+  if (phase === 'live') $('#big').textContent = '0:00';
 }
 
 function download(url, name) { const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
 
-function addTake(url, name, size, dur) {
+function addTake(take, size, dur) {
+  const { url, name } = take;
   $('#takes').hidden = false;
   const row = document.createElement('div'); row.className = 'take';
   row.innerHTML = `<video src="${url}" muted playsinline preload="metadata" tabindex="0" aria-label="Play this take"></video>
     <div><div class="name"></div><div class="meta">${fmt(dur)} · ${(size / 1048576).toFixed(1)} MB</div></div>
-    <button class="btn btn-ghost btn-small">Save again</button>`;
+    <button class="btn">Save</button>`;
   row.querySelector('.name').textContent = name;
-  const play = () => { $('#review').src = url; showStage('review'); $('#review').play().catch(() => {}); };
+  const play = () => { if (state.recording) return; $('#review').src = url; showStage('review'); state.last = take; setPhase('done');
+    $('#doneMeta').textContent = `${fmt(dur)} · ${(size / 1048576).toFixed(1)} MB · ${take.saved ? 'saved' : 'not saved yet'}`;
+    $('#big').textContent = fmt(dur); $('#review').play().catch(() => {}); };
   const v = row.querySelector('video');
   v.onclick = play; v.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); play(); } };
-  row.querySelector('button').onclick = () => download(url, name);
+  row.querySelector('button').onclick = () => save(take);
   $('#takeList').prepend(row);
 }
 
@@ -620,13 +702,13 @@ function releaseCapture() {
 
 function endUI() {
   setDrawing(false); state.strokes = [];
-  document.body.classList.remove('paused'); $('#pauseBtn').textContent = 'Pause';
-  $('#live').style.display = 'none';
+  document.body.classList.remove('paused'); $('#pauseBtn').textContent = 'Pause'; $('#recWord').textContent = 'Recording';
   setupLock(false);
+  if (state.phase !== 'done') setPhase('idle');
 }
 
 function setupLock(on) {
-  $('#setup').querySelectorAll('button,select,input').forEach(x => {
+  [...$('#setup').querySelectorAll('button,select,input'), ...$('#mode').querySelectorAll('button')].forEach(x => {
     if (on) { x.dataset.wasDisabled = x.disabled; x.disabled = true; }
     else x.disabled = x.dataset.wasDisabled === 'true';
   });
@@ -647,7 +729,7 @@ async function openPip() {
     const w = await documentPictureInPicture.requestWindow({ width: 300, height: 72 });
     w.document.body.innerHTML = `<style>
       body{margin:0;height:100vh;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;background:#1C2B2E;color:#F2EBDD;font:500 18px 'JetBrains Mono',ui-monospace,monospace}
-      .d{width:9px;height:9px;border-radius:50%;background:#FF6F59;display:inline-block;margin-right:8px;animation:p 1.2s infinite}
+      .d{width:8px;height:8px;border-radius:50%;background:#F2EBDD;display:inline-block;margin-right:8px;animation:p 1.4s infinite}
       .paused .d{animation:none;background:#8a9799}@keyframes p{50%{opacity:.25}}
       button{border:0;border-radius:999px;padding:8px 12px;font:600 13px system-ui;cursor:pointer}
       #p{background:transparent;color:#F2EBDD;border:1px solid rgba(242,235,221,.3)}#s{background:#FF6F59;color:#fff}
@@ -666,6 +748,8 @@ function fitStage() {
 }
 
 $('#recBtn').onclick = start;
+$('#saveBtn').onclick = () => state.last && save(state.last);
+$('#againBtn').onclick = () => { setPhase('idle'); syncFields(); refreshCamera(); };
 $('#pauseBtn').onclick = togglePause;
 $('#stopBtn').onclick = stop;
 $('#drawBtn').onclick = () => setDrawing(!state.drawing);

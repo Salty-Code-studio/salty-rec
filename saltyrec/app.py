@@ -9,12 +9,15 @@ from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox,
 
 from . import core, osui
 from .library import Job, Library
-from .overlays import CameraBubble, ControlBar, Countdown, DrawOverlay
+from PySide6.QtCore import QRect
+
+from .overlays import AreaFrame, AreaPicker, CameraBubble, ControlBar, Countdown, DrawOverlay
 from .recorder import Recorder
+from .stage import Preview, Stage
 from .theme import QSS
 
 M = core.MOD
-SHORTCUTS = f"{M}R start or stop  ·  {M}P pause  ·  {M}D draw  ·  {M}X cancel"
+SHORTCUTS = f"{M}R record  ·  P pause  ·  D draw  ·  X cancel"
 
 
 def seg_group(options, current):
@@ -50,81 +53,125 @@ class Panel(QWidget):
         self.app = app
         self.setObjectName("root")
         self.setWindowTitle("Salty Rec")
-        self.setFixedWidth(380)
+        self.setFixedWidth(400)
         self.cfg = QSettings("Salty Code", "Salty Rec")
 
         v = QVBoxLayout(self)
-        v.setContentsMargins(22, 20, 22, 22)
-        v.setSpacing(8)
+        v.setContentsMargins(18, 16, 18, 18)
+        v.setSpacing(10)
         top = QHBoxLayout()
         brand = QLabel("~< salty rec")
         brand.setObjectName("brand")
         lib = QPushButton("Library")
+        lib.setObjectName("text")
+        lib.setCursor(Qt.PointingHandCursor)
         lib.clicked.connect(lambda: app.show_library())
         top.addWidget(brand)
         top.addStretch()
         top.addWidget(lib)
         v.addLayout(top)
-        v.addSpacing(6)
 
-        card = QFrame()
-        card.setObjectName("card")
-        c = QVBoxLayout(card)
-        c.setContentsMargins(16, 16, 16, 16)
-        c.setSpacing(6)
+        # three planes: "Ready." at the back, the video-to-be in the middle, Record on top
+        self.preview = Preview(app.bubble)
+        self.rec = QPushButton("Record")
+        self.rec.setObjectName("record")
+        self.rec.setCursor(Qt.PointingHandCursor)
+        self.rec.clicked.connect(app.begin)
+        self.stage = Stage(self.preview, self.rec, back="Ready.", huge=104)
+        self.stage.setFixedHeight(300)
+        v.addWidget(self.stage)
 
-        c.addWidget(label("Record"))
         box, self.mode = seg_group([("both", "Screen + cam"), ("screen", "Screen"), ("cam", "Cam")],
                                    self.cfg.value("mode", "both"))
         self.mode.buttonClicked.connect(self._mode_changed)
-        c.addWidget(box)
+        v.addWidget(box)
 
+        # what to record: the whole screen, one window, or an area you drag
+        self.area = None
+        self.windows = []
+        self.source_box, self.source = seg_group([("screen", "Whole screen"), ("window", "One window"),
+                                                  ("area", "An area")], self.cfg.value("source", "screen"))
+        self.source.buttonClicked.connect(self._source_changed)
+        v.addWidget(self.source_box)
+        self.window_pick = QComboBox()
+        self.window_pick.setPlaceholderText("Pick a window")
+        self.window_pick.currentIndexChanged.connect(self._window_changed)
+        v.addWidget(self.window_pick)
+        area_row = QHBoxLayout()
+        self.area_btn = QPushButton("Drag an area")
+        self.area_btn.setCursor(Qt.PointingHandCursor)
+        self.area_btn.clicked.connect(lambda: app.pick_area())
+        self.area_info = QLabel("")
+        self.area_info.setObjectName("muted")
+        area_row.addWidget(self.area_btn)
+        area_row.addWidget(self.area_info, 1)
+        self.area_wrap = QWidget()
+        self.area_wrap.setLayout(area_row)
+        area_row.setContentsMargins(0, 0, 0, 0)
+        v.addWidget(self.area_wrap)
+
+        # everything else folds away under Setup, with a one-line summary
+        row = QHBoxLayout()
+        self.setup_btn = QPushButton("Setup")
+        self.setup_btn.setObjectName("text")
+        self.setup_btn.setCursor(Qt.PointingHandCursor)
+        self.setup_btn.clicked.connect(lambda: self._toggle_setup(not self.card.isVisible()))
+        self.summary = QLabel("")
+        self.summary.setObjectName("summary")
+        row.addWidget(self.setup_btn)
+        row.addWidget(self.summary, 1)
+        v.addLayout(row)
+
+        card = self.card = QFrame()
+        card.setObjectName("card")
+        c = QVBoxLayout(card)
+        c.setContentsMargins(14, 12, 14, 14)
+        c.setSpacing(6)
         self.screen_lab, self.screen = label("Screen"), QComboBox()
         self.cam_lab, self.cam = label("Camera"), QComboBox()
         self.mic_lab, self.mic = label("Microphone"), QComboBox()
         for lab, combo in ((self.screen_lab, self.screen), (self.cam_lab, self.cam), (self.mic_lab, self.mic)):
-            c.addSpacing(4)
             c.addWidget(lab)
             c.addWidget(combo)
+            combo.currentIndexChanged.connect(self._summarize)
         self.cam.currentIndexChanged.connect(lambda: app.bubble.set_camera(self.cam.currentText()))
 
         self.size_lab = label("Bubble")
-        c.addSpacing(4)
+        c.addSpacing(2)
         c.addWidget(self.size_lab)
         self.size_box, self.size = seg_group([("S", "Small"), ("M", "Medium"), ("L", "Large")],
                                              self.cfg.value("size", "M"))
-        self.size.buttonClicked.connect(lambda b: app.bubble.set_size(b.property("value")))
+        self.size.buttonClicked.connect(lambda b: (app.bubble.set_size(b.property("value")), self._summarize()))
         c.addWidget(self.size_box)
         self.shape_box, self.shape = seg_group(list(CameraBubble.SHAPES.items()), self.cfg.value("shape", "round"))
-        self.shape.buttonClicked.connect(lambda b: app.bubble.set_shape(b.property("value")))
+        self.shape.buttonClicked.connect(lambda b: (app.bubble.set_shape(b.property("value")), self._summarize()))
         c.addWidget(self.shape_box)
 
-        c.addSpacing(8)
+        c.addSpacing(4)
         self.system = QCheckBox("Include computer sound")
         self.system.setToolTip(f"Records what {core.MACHINE} plays: a video, a call, a demo with sound.")
         self.system.setChecked(self.cfg.value("system", "false") == "true")
+        self.system.toggled.connect(self._summarize)
         c.addWidget(self.system)
         self.auto_tx = QCheckBox("Transcribe when I stop")
         self.auto_tx.setChecked(self.cfg.value("auto_tx", "true") == "true")
         c.addWidget(self.auto_tx)
         v.addWidget(card)
 
-        v.addSpacing(6)
-        self.rec = QPushButton("●  Start recording")
-        self.rec.setObjectName("record")
-        self.rec.setCursor(Qt.PointingHandCursor)
-        self.rec.clicked.connect(app.begin)
-        v.addWidget(self.rec)
         hint = QLabel(SHORTCUTS)
-        hint.setObjectName("muted")
+        hint.setObjectName("label")
         hint.setWordWrap(True)
         hint.setAlignment(Qt.AlignCenter)
-        hint.setStyleSheet("font-size: 11px;")
         v.addWidget(hint)
         QShortcut(QKeySequence("Ctrl+R"), self, app.begin)
 
         self.load_devices()
+        if self.source_value() == "area":
+            self._check_source("screen")          # areas are picked fresh each session
+        elif self.source_value() == "window":
+            self.refresh_windows()
         self._mode_changed()
+        self._toggle_setup(self.cfg.value("setup_open", "false") == "true")
 
     def load_devices(self):
         native = core.helper_devices()
@@ -154,9 +201,99 @@ class Panel(QWidget):
     def mode_value(self):
         return self.mode.checkedButton().property("value")
 
+    def _toggle_setup(self, show):
+        self.card.setVisible(show)
+        self.setup_btn.setText("Hide setup" if show else "Setup")
+        self.summary.setVisible(not show)
+        self.cfg.setValue("setup_open", "true" if show else "false")
+        self._summarize()
+        self.adjustSize()
+
+    def _summarize(self, *_):
+        if not hasattr(self, "summary"):
+            return
+        m = self.mode_value()
+        parts = []
+        if m != "cam":
+            src = self.source_value()
+            w = self.window_info() if src == "window" else None
+            parts.append({"screen": "Whole screen", "area": "Area"}.get(src) or (w["app"] if w else "Pick a window"))
+        if m != "screen":
+            parts.append(self.cam.currentText() or "No camera")
+        parts.append(self.mic.currentText() or "No microphone")
+        if m != "cam" and self.system.isChecked():
+            parts.append("computer sound")
+        if m == "both":
+            parts.append(f"{self.shape.checkedButton().text()} {self.size.checkedButton().text().lower()}")
+        full = "  ·  ".join(parts)
+        self.summary.setText(self.summary.fontMetrics().elidedText(full, Qt.ElideRight, 290))
+        self.summary.setToolTip(full)
+
+    def source_value(self):
+        return self.source.checkedButton().property("value")
+
+    def refresh_windows(self):
+        keep = self.window_pick.currentData()
+        self.windows = core.list_windows()
+        self.window_pick.blockSignals(True)
+        self.window_pick.clear()
+        for w in self.windows:
+            label_ = w["app"] if w["title"] in ("", w["app"]) else f"{w['app']}  ·  {w['title']}"
+            self.window_pick.addItem(self.window_pick.fontMetrics().elidedText(label_, Qt.ElideRight, 330), w["id"])
+        i = self.window_pick.findData(keep) if keep is not None else -1
+        self.window_pick.setCurrentIndex(i)
+        self.window_pick.blockSignals(False)
+
+    def window_info(self):
+        return next((w for w in self.windows if w["id"] == self.window_pick.currentData()), None)
+
+    def target_rect(self):
+        """The part of the screen to record, in global coordinates, or None for the whole screen."""
+        src = self.source_value()
+        if self.mode_value() == "cam" or src == "screen":
+            return None
+        if src == "area":
+            return self.area
+        w = self.window_info()
+        if not w:
+            return None
+        k = QGuiApplication.primaryScreen().devicePixelRatio() if osui.IS_WIN else 1   # Windows lists pixels
+        return QRect(round(w["x"] / k), round(w["y"] / k), round(w["width"] / k), round(w["height"] / k))
+
+    def _source_changed(self, *_):
+        if self.source_value() == "window":
+            self.refresh_windows()
+        if self.source_value() == "area" and self.area is None:
+            self.app.pick_area()
+        self._mode_changed()
+
+    def _window_changed(self, *_):
+        self.preview.set_target(self.target_rect())
+        self._summarize()
+
+    def set_area(self, rect):
+        if rect is not None:
+            self.area = rect
+        elif self.area is None:
+            self._check_source("screen")
+        self.area_info.setText(f"{self.area.width()} × {self.area.height()}" if self.area else "")
+        self.area_btn.setText("Drag again" if self.area else "Drag an area")
+        self._mode_changed()
+
+    def _check_source(self, value):
+        for b in self.source.buttons():
+            if b.property("value") == value:
+                b.setChecked(True)
+
     def _mode_changed(self, *_):
         m = self.mode_value()
-        multi = self.screen.count() > 1
+        src = self.source_value()
+        self.source_box.setVisible(m != "cam")
+        self.window_pick.setVisible(m != "cam" and src == "window")
+        self.area_wrap.setVisible(m != "cam" and src == "area")
+        self.preview.set_mode(m)
+        self.preview.set_target(self.target_rect())
+        multi = self.screen.count() > 1 and src == "screen"
         self.screen_lab.setVisible(m != "cam" and multi)
         self.screen.setVisible(m != "cam" and multi)
         self.cam_lab.setVisible(m != "screen")
@@ -165,6 +302,7 @@ class Panel(QWidget):
         self.size_box.setVisible(m == "both")
         self.shape_box.setVisible(m == "both")
         self.system.setVisible(m != "cam")
+        self._summarize()
         self.adjustSize()
         self.app.sync_bubble()
 
@@ -172,17 +310,23 @@ class Panel(QWidget):
         mic_name = self.mic.currentText() if self.mic.currentData() is not None else None
         rect = None
         screens = QGuiApplication.screens()
-        if osui.IS_WIN and len(screens) > 1 and isinstance(self.screen.currentData(), int):
+        target = self.target_rect()
+        if osui.IS_WIN and target is not None:
+            k = QGuiApplication.primaryScreen().devicePixelRatio()
+            rect = (round(target.x() * k), round(target.y() * k), round(target.width() * k), round(target.height() * k))
+        elif osui.IS_WIN and len(screens) > 1 and isinstance(self.screen.currentData(), int):
             s = screens[min(self.screen.currentData(), len(screens) - 1)]
             g, k = s.geometry(), s.devicePixelRatio()   # gdigrab works in physical pixels
             rect = (round(g.x() * k), round(g.y() * k), round(g.width() * k), round(g.height() * k))
         return dict(mode=self.mode_value(), display=self.screen.currentData(), mic_uid=self.mic.currentData(),
                     display_rect=rect,
+                    target_rect=None if target is None else (target.x(), target.y(), target.width(), target.height()),
                     system=self.system.isChecked(), cam=self.cam.currentData(),
                     mic_index=self._ff_mics.get(mic_name) if mic_name else None)
 
     def save(self):
         self.cfg.setValue("mode", self.mode_value())
+        self.cfg.setValue("source", self.source_value())
         self.cfg.setValue("size", self.size.checkedButton().property("value"))
         self.cfg.setValue("shape", self.shape.checkedButton().property("value"))
         self.cfg.setValue("screen", self.screen.currentText())
@@ -193,6 +337,7 @@ class Panel(QWidget):
 
     def showEvent(self, e):
         super().showEvent(e)
+        osui.hide_from_capture(self)       # the preview shows your screen without this panel in it
         self.app.sync_bubble()
 
     def closeEvent(self, e):
@@ -241,6 +386,8 @@ class SaltyRec:
         self.bar = ControlBar()
         self.countdown = Countdown()
         self.draw = DrawOverlay()
+        self.picker = AreaPicker()
+        self.area_frame = AreaFrame()
         self.library = None
         self.jobs = set()
         self._bubble_placed = False
@@ -256,6 +403,7 @@ class SaltyRec:
         self.tick = QTimer(interval=250, timeout=lambda: self.bar.set_time(self.recorder.elapsed_ms()))
         self.countdown.finished.connect(self._go)
         self.countdown.cancelled.connect(self._abort_countdown)
+        self.picker.picked.connect(self._area_picked)
         self.bar.pause_clicked.connect(self._pause)
         self.bar.draw_clicked.connect(self.toggle_draw)
         self.bar.stop_clicked.connect(self._stop)
@@ -379,6 +527,12 @@ class SaltyRec:
             return
         p = self.panel
         p.save()
+        if p.source_value() == "window" and p.mode_value() != "cam":
+            p.refresh_windows()                     # the window may have moved since it was picked
+            if p.window_info() is None:
+                p.show()
+                p.window_pick.showPopup()
+                return
         opts = p.capture_options()
         if osui.IS_MAC and opts["mode"] != "cam" and not self._screen_access():
             return
@@ -388,12 +542,38 @@ class SaltyRec:
             self._show_bubble()
         else:
             self.bubble.hide()       # camera-only: ffmpeg needs the camera to itself
+        self.area_frame.winId()
+        self.picker.winId()
+        self._frame_target(p.target_rect() if opts["mode"] != "cam" else None)
         self.bar.winId()             # native window must exist so capture can leave it out
         self.recorder.prepare()      # warm up capture during the countdown
         self.countdown.run()
 
+    def pick_area(self):
+        self.panel.hide()
+        self.bubble.hide()
+        QTimer.singleShot(150, self.picker.run)
+
+    def _area_picked(self, rect):
+        self.panel.set_area(rect)
+        self.show_panel()
+
+    def _frame_target(self, rect):
+        """Bring a picked window forward, keep the bubble inside the recorded part, outline it."""
+        if rect is None:
+            self.area_frame.hide()
+            return
+        if self.panel.source_value() == "window" and self.panel.window_info():
+            osui.activate(self.panel.window_info())
+        b = self.bubble.frameGeometry()
+        if not rect.contains(b):
+            d = self.bubble.height()
+            self.bubble.move(rect.left() + 24, rect.bottom() - d - 24)
+        self.area_frame.frame(rect)
+
     def _abort_countdown(self):
         self.recorder.abort_prepare()
+        self.area_frame.hide()
         self.show_panel()
 
     def _go(self):
@@ -418,6 +598,7 @@ class SaltyRec:
 
     def _end_ui(self):
         self.tick.stop()
+        self.area_frame.hide()
         self.toggle_draw(False)
         self.draw.clear()
         self.draw.hide()

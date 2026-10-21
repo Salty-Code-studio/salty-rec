@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QListWidget, QLis
                                QPushButton, QSlider, QSplitter, QTextBrowser, QVBoxLayout, QWidget)
 
 from . import core, share
+from .stage import Stage
 
 
 def fmt(sec: float) -> str:
@@ -55,7 +56,6 @@ class Library(QWidget):
         brand = QLabel("~< salty rec")
         brand.setObjectName("brand")
         new = QPushButton("New recording")
-        new.setObjectName("primary")
         new.clicked.connect(self.record_requested.emit)
         top.addWidget(brand)
         top.addStretch()
@@ -77,14 +77,20 @@ class Library(QWidget):
         rv.setContentsMargins(8, 18, 18, 18)
         rv.setSpacing(10)
         self.title = QLineEdit()
-        self.title.setStyleSheet('font-family:"Space Grotesk";font-size:20px;font-weight:600;color:#0E3A40;'
-                                 'background:transparent;border:1px solid transparent;')
+        self.title.setObjectName("title")
+        self.title.setToolTip("Click to rename")
         self.title.editingFinished.connect(self._rename)
         rv.addWidget(self.title)
+        # three planes: the length huge at the back, the video in the middle, the next tap on top
         self.video = QVideoWidget()
-        self.video.setMinimumHeight(320)
-        self.video.setStyleSheet("background:#1C2B2E;border-radius:12px;")
-        rv.addWidget(self.video, 3)
+        self.video.setStyleSheet("background:#1C2B2E;")
+        self.b_share = QPushButton("Share link")
+        self.b_share.setObjectName("signal")
+        self.b_share.setCursor(Qt.PointingHandCursor)
+        self.b_share.clicked.connect(self._main_action)
+        self.stage = Stage(self.video, self.b_share, back="", huge=150, align_button="right")
+        self.stage.setMinimumHeight(420)
+        rv.addWidget(self.stage, 3)
         self.player = QMediaPlayer()
         self.audio = QAudioOutput()
         self.player.setAudioOutput(self.audio)
@@ -111,8 +117,6 @@ class Library(QWidget):
             lambda s: self.play.setText("Pause" if s == QMediaPlayer.PlayingState else "Play"))
 
         links = QHBoxLayout()
-        self.b_share = self._btn(links, "Share link", self._share, "primary",
-                                 tip="Uploads a light copy and puts a private link on your clipboard.")
         self.b_open = self._btn(links, "Open page", self._open_page)
         self.b_unshare = self._btn(links, "Stop sharing", self._unshare, tip="Deletes the online copy. The link stops working.")
         links.addStretch()
@@ -233,6 +237,7 @@ class Library(QWidget):
         self.current = folder
         meta = core.read_meta(folder)
         self.title.setText(meta["title"])
+        self.stage.set_back(fmt(meta.get("duration", 0)))
         self.player.stop()
         self.player.setSource(QUrl.fromLocalFile(str(folder / "video.mp4")))
         self._render_transcript()
@@ -461,6 +466,12 @@ class Library(QWidget):
         self.jobs.add(job)
         job.start()
 
+    def _main_action(self):
+        if share.configured():
+            self._share()
+        else:
+            self._copy()
+
     def _sync_buttons(self):
         if not self.current:
             return
@@ -483,9 +494,14 @@ class Library(QWidget):
         self.b_open.setVisible(st != "none")
         self.b_unshare.setVisible(st != "none")
         self.b_unshare.setEnabled(not sharing)
-        if not share.configured():          # copies without our share server just save and copy files
-            for w in (self.b_share, self.b_open, self.b_unshare, self.views):
+        self.b_share.setToolTip("Uploads a light copy and puts a private link on your clipboard.")
+        if not share.configured():          # without a share server the next tap is copying the file
+            self.b_share.setText("Copy video file")
+            self.b_share.setToolTip("Copies the file itself. Paste it into WhatsApp, Mail or Slack.")
+            self.b_share.setEnabled(not editing)
+            for w in (self.b_open, self.b_unshare, self.views):
                 w.setVisible(False)
+        self.b_copy.setVisible(share.configured())
 
     def closeEvent(self, e):
         self.player.pause()

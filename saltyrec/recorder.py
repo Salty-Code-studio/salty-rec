@@ -134,7 +134,8 @@ class Recorder(QObject):
         proc.finished.connect(self._helper_exit)
         self.helper.start(str(HELPER), [
             "record", "--display", str(o.get("display") or 0), "--mic", o.get("mic_uid") or "none",
-            "--system", "1" if o.get("system") else "0", "--hide-title", HIDE_PREFIX, "--parent", str(os.getpid())])
+            "--system", "1" if o.get("system") else "0", "--hide-title", HIDE_PREFIX, "--parent", str(os.getpid()),
+            *(["--rect", ",".join(str(v) for v in o["target_rect"])] if o.get("target_rect") else [])])
 
     def _send(self, line):
         if self.helper and self.helper.state() == QProcess.Running:

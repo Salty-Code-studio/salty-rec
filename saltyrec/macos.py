@@ -60,3 +60,13 @@ def set_level(widget, level: int):
             w.setLevel_(level)
         except Exception:
             pass
+
+
+def activate(win):
+    """Brings the app that owns this window to the front."""
+    try:
+        from AppKit import NSRunningApplication
+        app = NSRunningApplication.runningApplicationWithProcessIdentifier_(int(win["pid"]))
+        app.activateWithOptions_(1 << 1)        # ignore other apps
+    except Exception:
+        pass

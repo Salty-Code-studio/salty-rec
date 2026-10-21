@@ -34,9 +34,11 @@ jobs:
           uv run pyinstaller --noconfirm packaging/saltyrec.spec
 
       - name: Self-test the built app
+        timeout-minutes: 12
         shell: pwsh
         run: |
-          $p = Start-Process dist/SaltyRec/SaltyRec.exe -ArgumentList "--selftest", "$PWD\selftest.json" -Wait -PassThru
+          $p = Start-Process dist/SaltyRec/SaltyRec.exe -ArgumentList "--selftest", "$PWD\selftest.json" -PassThru
+          if (-not $p.WaitForExit(600000)) { Stop-Process $p -Force; Get-Content selftest.json; throw "self-test hung" }
           Get-Content selftest.json
           if ($p.ExitCode -ne 0) { throw "self-test failed" }
 

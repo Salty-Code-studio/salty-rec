@@ -39,7 +39,8 @@ NO_WINDOW = {"creationflags": 0x08000000} if IS_WIN else {}
 
 
 def run(args, **kw):
-    r = subprocess.run([str(a) for a in args], capture_output=True, text=True, **NO_WINDOW, **kw)
+    r = subprocess.run([str(a) for a in args], capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                       **NO_WINDOW, **kw)
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout).strip().splitlines()[-1] if (r.stderr or r.stdout) else "ffmpeg failed")
     return r
@@ -56,6 +57,14 @@ def helper_devices():
         return json.loads(r.stdout)
     except Exception:
         return {"displays": [], "mics": []}
+
+
+def list_windows():
+    """Windows you can record: [{id, app, title, x, y, width, height}] in screen points (pixels on Windows)."""
+    if IS_WIN:
+        from .windows import list_windows as win_list
+        return win_list()
+    return helper_devices().get("windows", [])
 
 
 def list_devices():
@@ -83,7 +92,7 @@ def list_devices():
 def _dshow_devices():
     try:
         out = subprocess.run([FFMPEG, "-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
-                             capture_output=True, text=True, errors="ignore", **NO_WINDOW).stderr
+                             capture_output=True, text=True, errors="ignore", stdin=subprocess.DEVNULL, **NO_WINDOW).stderr
     except Exception:
         return [], [], []
     cams, mics = [], []
@@ -141,7 +150,7 @@ def recordings():
 
 
 def duration(path: Path) -> float:
-    r = subprocess.run([FFPROBE, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)], **NO_WINDOW,
+    r = subprocess.run([FFPROBE, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)], stdin=subprocess.DEVNULL, **NO_WINDOW,
                        capture_output=True, text=True)
     try:
         return float(r.stdout.strip())
@@ -151,7 +160,7 @@ def duration(path: Path) -> float:
 
 def audio_streams(path: Path) -> int:
     r = subprocess.run([FFPROBE, "-v", "error", "-select_streams", "a", "-show_entries", "stream=index",
-                        "-of", "csv=p=0", str(path)], capture_output=True, text=True, **NO_WINDOW)
+                        "-of", "csv=p=0", str(path)], capture_output=True, text=True, stdin=subprocess.DEVNULL, **NO_WINDOW)
     return len(r.stdout.split())
 
 
@@ -365,7 +374,7 @@ def remove_silences(folder: Path, threshold_db=-35, min_gap=0.7, pad=0.15):
     total = duration(src)
     r = subprocess.run([FFMPEG, "-hide_banner", "-i", str(src), "-af",
                         f"silencedetect=noise={threshold_db}dB:d={min_gap}", "-f", "null", "-"],
-                       capture_output=True, text=True, **NO_WINDOW)
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL, **NO_WINDOW)
     starts = [float(x) for x in re.findall(r"silence_start: (-?[\d.]+)", r.stderr)]
     ends = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", r.stderr)]
     if len(ends) < len(starts):
